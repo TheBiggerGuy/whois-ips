@@ -1,0 +1,13 @@
+[package]
+name = "org_to_ip"
+version = "0.1.0"
+authors = ["Guy Taylor <thebigguy.co.uk@gmail.com>"]
+
+[dependencies]
+hyper = "0.10"
+xml-rs = "0.3.x"
+clippy = {version = "*", optional = true}
+iprange = {git = "file:///home/guy/Code/git/iprange-rs", branch = "wip"}
+
+[features]
+default = []
