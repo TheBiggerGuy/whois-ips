@@ -84,7 +84,7 @@ fn main() {
 
     if response.is_err() {
         println!("{:}", response.unwrap_err());
-        return
+        return;
     }
 
     for ip in response.unwrap().ips {
@@ -95,5 +95,4 @@ fn main() {
 
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}
