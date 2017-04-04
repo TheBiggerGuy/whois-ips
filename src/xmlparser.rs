@@ -37,12 +37,11 @@ impl StdWhoisXmlParser {
         StdWhoisXmlParser {}
     }
 
-    fn parse_ip(ip_str : &str) -> Result<IpAddr, ParseError> {
+    fn parse_ip(ip_str: &str) -> Result<IpAddr, ParseError> {
         IpAddr::from_str(ip_str).map_err(|e| ParseError::IpAddrError(format!("Failed to parse IP address: {:} ({:})", e, ip_str)))
     }
 
-    fn parse_content_netref(attributes: Vec<OwnedAttribute>)
-                            -> Result<WhoisIpResult, ParseError> {
+    fn parse_content_netref(attributes: Vec<OwnedAttribute>) -> Result<WhoisIpResult, ParseError> {
         let mut range_name: Option<String> = Option::None;
         let mut start_ip: Option<IpAddr> = Option::None;
         let mut end_ip: Option<IpAddr> = Option::None;
