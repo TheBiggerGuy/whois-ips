@@ -4,8 +4,9 @@ version = "0.1.0"
 authors = ["Guy Taylor <thebigguy.co.uk@gmail.com>"]
 
 [dependencies]
-hyper = "0.10"
-xml-rs = "0.3.x"
+clap = "~2.19.0"
+hyper = "~0.10"
+xml-rs = "~0.3.0"
 clippy = {version = "*", optional = true}
 iprange = {git = "file:///home/guy/Code/git/iprange-rs", branch = "wip"}
 
