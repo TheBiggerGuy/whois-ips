@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 use std::io;
 use std::str::FromStr;
+use std::fmt;
 
 use xml;
 use xml::reader::{EventReader, XmlEvent};
@@ -15,6 +16,14 @@ pub enum ParseError {
     LimitExceeded,
 }
 
+impl fmt::Display for ParseError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ParseError::XmlError(ref expr) => write!(fmt, "{}", expr),
+            ParseError::LimitExceeded => write!(fmt, "API result limit exceeded"),
+        }
+    }
+}
 pub trait WhoisXmlParser {
     fn parse_content<T: io::Read>(&self, xml: T) -> Result<WhoisResult, ParseError>;
 }
