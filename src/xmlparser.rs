@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::fmt;
 
 use xml::reader::{EventReader, XmlEvent};
-use xml::attribute::OwnedAttribute;
 
 use super::{WhoisResult, WhoisIpResult};
 
@@ -40,35 +39,6 @@ impl StdWhoisXmlParser {
     fn parse_ip(ip_str: &str) -> Result<IpAddr, ParseError> {
         IpAddr::from_str(ip_str).map_err(|e| ParseError::IpAddrError(format!("Failed to parse IP address: {:} ({:})", e, ip_str)))
     }
-
-    fn parse_content_netref(attributes: Vec<OwnedAttribute>) -> Result<WhoisIpResult, ParseError> {
-        let mut range_name: Option<String> = Option::None;
-        let mut start_ip: Option<IpAddr> = Option::None;
-        let mut end_ip: Option<IpAddr> = Option::None;
-
-        for attribute in attributes {
-            match attribute.name.local_name.as_ref() {
-                "name" => {
-                    range_name = Option::Some(attribute.value.clone());
-                }
-                "startAddress" => {
-                    let ip = StdWhoisXmlParser::parse_ip(&attribute.value)?;
-                    start_ip = Option::Some(ip);
-                }
-                "endAddress" => {
-                    let ip = StdWhoisXmlParser::parse_ip(&attribute.value)?;
-                    end_ip = Option::Some(ip);
-                }
-                _ => {}
-            }
-        }
-
-        Ok(WhoisIpResult {
-               name: range_name.unwrap(),
-               start_ip: start_ip.unwrap(),
-               end_ip: end_ip.unwrap(),
-           })
-    }
 }
 
 impl WhoisXmlParser for StdWhoisXmlParser {
@@ -76,33 +46,52 @@ impl WhoisXmlParser for StdWhoisXmlParser {
         let mut ip_results: Vec<WhoisIpResult> = Vec::new();
 
         let parser = EventReader::new(xml);
-        let mut is_inside_limit = false;
+
+        let mut curret_element = String::new();
+        let mut start_ip: Option<IpAddr> = Option::None;
+        let mut end_ip: Option<IpAddr> = Option::None;
+
         for elm in parser {
             match elm {
-                Ok(XmlEvent::StartElement { name, attributes, .. }) => {
-                    match name.local_name.as_ref() {
-                        "netRef" => {
-                            let ip_result = StdWhoisXmlParser::parse_content_netref(attributes)?;
-                            ip_results.push(ip_result);
-                        }
+                Ok(XmlEvent::StartElement { name, .. }) => {
+                    curret_element = name.local_name;
+                }
+                Ok(XmlEvent::Characters(s)) => {
+                    match curret_element.as_ref() {
                         "limitExceeded" => {
-                            is_inside_limit = true;
+                            match s.as_ref() {
+                                "false" => {}
+                                _ => {
+                                    return Err(ParseError::LimitExceeded);
+                                }
+                            }
+                        }
+                        "net" => {
+                            start_ip = Option::None;
+                            end_ip = Option::None;
+                        }
+                        "startAddress" => {
+                            let ip = StdWhoisXmlParser::parse_ip(&s.as_str())?;
+                            start_ip = Option::Some(ip);
+                        }
+                        "endAddress" => {
+                            let ip = StdWhoisXmlParser::parse_ip(&s.as_str())?;
+                            end_ip = Option::Some(ip);
                         }
                         _ => {}
                     }
                 }
-                Ok(XmlEvent::Characters(s)) => {
-                    if is_inside_limit {
-                        match s.as_ref() {
-                            "false" => {}
-                            _ => {
-                                return Err(ParseError::LimitExceeded);
-                            }
+                Ok(XmlEvent::EndElement { name, .. }) => {
+                    match name.local_name.as_ref() {
+                        "net" => {
+                            ip_results.push(WhoisIpResult {
+                                                start_ip: start_ip.unwrap(),
+                                                end_ip: end_ip.unwrap(),
+                                            });
                         }
+                        _ => {}
                     }
-                }
-                Ok(XmlEvent::EndElement { .. }) => {
-                    is_inside_limit = false;
+                    curret_element = String::new();
                 }
                 Ok(XmlEvent::CData(_)) => {
                     panic!("XML parser returned CData. This should never happen");
@@ -169,7 +158,6 @@ mod tests {
         let whois_result = result.unwrap();
         assert_eq!(whois_result.ips.len(), 1);
         let whois_ip_result = whois_result.ips.get(0).unwrap();
-        assert_eq!(whois_ip_result.name, String::from("DROPB"));
         assert_eq!(whois_ip_result.start_ip,
                    IpAddr::from_str("162.125.0.0").unwrap());
         assert_eq!(whois_ip_result.end_ip,
@@ -193,14 +181,12 @@ mod tests {
         assert_eq!(whois_result.ips.len(), 2);
 
         let whois_ip_result_0 = whois_result.ips.get(0).unwrap();
-        assert_eq!(whois_ip_result_0.name, String::from("DROPB"));
         assert_eq!(whois_ip_result_0.start_ip,
                    IpAddr::from_str("162.125.0.0").unwrap());
         assert_eq!(whois_ip_result_0.end_ip,
                    IpAddr::from_str("162.125.255.255").unwrap());
 
         let whois_ip_result_1 = whois_result.ips.get(1).unwrap();
-        assert_eq!(whois_ip_result_1.name, String::from("DROPB"));
         assert_eq!(whois_ip_result_1.start_ip,
                    IpAddr::from_str("162.125.0.0").unwrap());
         assert_eq!(whois_ip_result_1.end_ip,
